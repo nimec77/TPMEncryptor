@@ -100,7 +100,8 @@ void CTPMEncryptorDlg::OnBnClickedEncrytpButton()
 	try {
 		CT2CA pszConvertedAnsiString(plainText);
 		std::string convertedString(pszConvertedAnsiString);
-		std::string encrypted = m_encryptor.Encrypt(convertedString);
+		std::string password = "123456";
+		std::string encrypted = m_encryptor.Encrypt(convertedString, password);
 		std::string base64Encoded = TMPEncryptorHelper::Base64Encode(encrypted);
 		CString cstr(base64Encoded.c_str());
 		SetDlgItemText(IDC_ENCRYTPED_TEXT, cstr);
@@ -121,7 +122,8 @@ void CTPMEncryptorDlg::OnBnClickedDecrytpButton()
 		CT2CA pszConvertedAnsiString(chipherText);
 		std::string convertedString(pszConvertedAnsiString);
 		std::string base64Decoded = TMPEncryptorHelper::Base64Decode(convertedString);
-		std::string decrypted = m_encryptor.Decrypt(base64Decoded);
+		std::string password = "123456";
+		std::string decrypted = m_encryptor.Decrypt(base64Decoded, password);
 		CString cstr(decrypted.c_str());
 		MessageBox(L"Decrypted: " + cstr);
 	}
