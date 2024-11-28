@@ -56,7 +56,7 @@ std::string TMPEncryptorHelper::Encrypt(const std::string& plainText, const std:
 
     // Create or open an RSA key
     NCRYPT_KEY_HANDLE hKeyRaw = NULL;
-    status = NCryptCreatePersistedKey(hProvRaw, &hKeyRaw, NCRYPT_RSA_ALGORITHM, KEY_NAME, 0, NCRYPT_OVERWRITE_KEY_FLAG);
+    status = NCryptCreatePersistedKey(hProvRaw, &hKeyRaw, NCRYPT_RSA_ALGORITHM, KEY_NAME, 0, 0);
     if (status == NTE_EXISTS)
     {
 		isKeyAlreadyExist = true;
@@ -68,37 +68,23 @@ std::string TMPEncryptorHelper::Encrypt(const std::string& plainText, const std:
     }
 	hKey.reset(reinterpret_cast<void*>(hKeyRaw));
 
-	// Set the PIN code
-	//std::wstring wPassword(password.begin(), password.end());
-	//status = NCryptSetProperty(hKeyRaw, NCRYPT_PIN_PROPERTY, (PBYTE)password.c_str(), (wPassword.size() + 1) * sizeof(WCHAR), 0);
-	//if (status != ERROR_SUCCESS) {
-	//	throw std::runtime_error("Error code: " + std::to_string(status) + " Failed to set PIN");
-	//}
-
-
-	DWORD cbResult = 0;
-	status = NCryptGetProperty(hKeyRaw, NCRYPT_UI_POLICY_PROPERTY, NULL, 0, &cbResult, 0);
-	if (status == NTE_NOT_SUPPORTED) {
-		throw std::runtime_error("Error code: " + std::to_string(status) + " NCRYPT_UI_POLICY_PROPERTY is not supported on this platform.");
-	}
-
-	// Set the UI policy to the password
-	NCRYPT_UI_POLICY UIPolicy = { 0 };
-	ZeroMemory(&UIPolicy, sizeof(UIPolicy));
-
-	UIPolicy.dwVersion = 1;
-	UIPolicy.dwFlags = NCRYPT_UI_FORCE_HIGH_PROTECTION_FLAG;
-	UIPolicy.pszCreationTitle = L"Strong Key UX Sample";
-	UIPolicy.pszFriendlyName = L"Sample Friendly Name";
-	UIPolicy.pszDescription = L"This is a sample strong key";
-	status = NCryptSetProperty(hKeyRaw, NCRYPT_UI_POLICY_PROPERTY, (PBYTE)&UIPolicy, sizeof(UIPolicy), 0);
-	if (status != ERROR_SUCCESS) {
-		throw std::runtime_error("Error code: " + std::to_string(status) + " Failed to set UI policy");
-	}
-
     DWORD keyLength = 2048;
     if (!isKeyAlreadyExist) {
-        // Set the key length to 2048 bits
+		// Set the UI policy to the password
+		NCRYPT_UI_POLICY UIPolicy = { 0 };
+		ZeroMemory(&UIPolicy, sizeof(UIPolicy));
+
+		UIPolicy.dwVersion = 1;
+		UIPolicy.dwFlags = NCRYPT_UI_FORCE_HIGH_PROTECTION_FLAG;
+		UIPolicy.pszCreationTitle = L"Strong Key UX Sample";
+		UIPolicy.pszFriendlyName = L"Sample Friendly Name";
+		UIPolicy.pszDescription = L"This is a sample strong key";
+		status = NCryptSetProperty(hKeyRaw, NCRYPT_UI_POLICY_PROPERTY, (PBYTE)&UIPolicy, sizeof(UIPolicy), 0);
+		if (status != ERROR_SUCCESS) {
+			throw std::runtime_error("Error code: " + std::to_string(status) + " Failed to set UI policy");
+		}
+
+		// Set the key length to 2048 bits
         status = NCryptSetProperty(hKeyRaw, NCRYPT_LENGTH_PROPERTY, (PBYTE)&keyLength, sizeof(keyLength), 0);
         if (status != ERROR_SUCCESS)
         {
