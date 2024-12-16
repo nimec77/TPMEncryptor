@@ -11,6 +11,7 @@
 #include <string>
 #include <atlstr.h>
 #include <iostream>
+#include <winrt/Windows.Foundation.h>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -18,8 +19,6 @@
 
 
 // CTPMEncryptorDlg dialog
-
-
 
 CTPMEncryptorDlg::CTPMEncryptorDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_TPMENCRYPTOR_DIALOG, pParent)
@@ -37,6 +36,9 @@ BEGIN_MESSAGE_MAP(CTPMEncryptorDlg, CDialogEx)
 	ON_WM_QUERYDRAGICON()
 	ON_BN_CLICKED(IDC_ENCRYTP_BUTTON, &CTPMEncryptorDlg::OnBnClickedEncrytpButton)
 	ON_BN_CLICKED(IDC_DECRYTP_BUTTON, &CTPMEncryptorDlg::OnBnClickedDecrytpButton)
+	ON_BN_CLICKED(IDC_DELETE_KEY, &CTPMEncryptorDlg::OnBnClickedDeleteKey)
+	ON_BN_CLICKED(IDC_SECURE_AUTH, &CTPMEncryptorDlg::OnBnClickedSecureDescr)
+	ON_BN_CLICKED(IDC_CHECK_TPM, &CTPMEncryptorDlg::OnBnClickedCheckTpm)
 END_MESSAGE_MAP()
 
 
@@ -52,6 +54,7 @@ BOOL CTPMEncryptorDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here
+	winrt::init_apartment(); // Initialize the Windows Runtime
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -99,9 +102,10 @@ void CTPMEncryptorDlg::OnBnClickedEncrytpButton()
 
 	try {
 		CT2CA pszConvertedAnsiString(plainText);
+		auto pSid = m_secureDescrService.GetCurrentUserSid();
+		auto secureDescrData = m_secureDescrService.CreateSecureDescriptor(pSid);
 		std::string convertedString(pszConvertedAnsiString);
-		std::string password = "123456";
-		std::string encrypted = m_encryptor.Encrypt(convertedString, password);
+		std::string encrypted = m_encryptor.Encrypt(convertedString, secureDescrData);
 		std::string base64Encoded = TMPEncryptorHelper::Base64Encode(encrypted);
 		CString cstr(base64Encoded.c_str());
 		SetDlgItemText(IDC_ENCRYTPED_TEXT, cstr);
@@ -122,10 +126,53 @@ void CTPMEncryptorDlg::OnBnClickedDecrytpButton()
 		CT2CA pszConvertedAnsiString(chipherText);
 		std::string convertedString(pszConvertedAnsiString);
 		std::string base64Decoded = TMPEncryptorHelper::Base64Decode(convertedString);
-		std::string password = "123456";
-		std::string decrypted = m_encryptor.Decrypt(base64Decoded, password);
+		std::string decrypted = m_encryptor.Decrypt(base64Decoded);
 		CString cstr(decrypted.c_str());
 		MessageBox(L"Decrypted: " + cstr);
+	}
+	catch (const std::exception& e) {
+		MessageBox(CString(e.what()));
+	}
+}
+
+
+void CTPMEncryptorDlg::OnBnClickedDeleteKey()
+{
+	try {
+		m_encryptor.DeleteKey();
+		MessageBox(L"Key deleted");
+	}
+	catch (const std::exception& e) {
+		MessageBox(CString(e.what()));
+	}
+}
+
+
+void CTPMEncryptorDlg::OnBnClickedSecureDescr()
+{
+	try {
+		auto isAuth = m_userAuth.AuthenticateAsync().get();
+		if (isAuth) {
+			MessageBox(L"Authenticated!");
+		}
+		else {
+			MessageBox(L"Authentication failed!");
+		}
+	}
+	catch (const std::exception& e) {
+		MessageBox(CString(e.what()));
+	}
+}
+
+
+void CTPMEncryptorDlg::OnBnClickedCheckTpm()
+{
+
+	try {
+		auto tpmVersion = m_encryptor.isWindowsTPMSupported();
+		CString cstr;
+		cstr.Format(L"TPM Version: %d", tpmVersion);
+		MessageBox(cstr);
 	}
 	catch (const std::exception& e) {
 		MessageBox(CString(e.what()));

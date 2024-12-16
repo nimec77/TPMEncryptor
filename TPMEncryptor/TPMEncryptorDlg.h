@@ -5,6 +5,9 @@
 #pragma once
 
 #include "TMPEncryptorHelper.h"
+#include "SecureDescrService.h"
+#include "MemoryDeallocation.h"
+#include "UserAuth.h"
 
 // CTPMEncryptorDlg dialog
 class CTPMEncryptorDlg : public CDialogEx
@@ -37,4 +40,10 @@ public:
 
 private:
 	TMPEncryptorHelper m_encryptor;
+	SecureDescrService m_secureDescrService;
+	UserAuth m_userAuth;
+public:
+	afx_msg void OnBnClickedDeleteKey();
+	afx_msg void OnBnClickedSecureDescr();
+	afx_msg void OnBnClickedCheckTpm();
 };

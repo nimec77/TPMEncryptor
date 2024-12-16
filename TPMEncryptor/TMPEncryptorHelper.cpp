@@ -3,16 +3,19 @@
 #include <bcrypt.h>
 #include <ncrypt.h>
 #include <stdexcept>
-#include <windows.h>
 #include <vector>
 #include <memory>
 #include <wincrypt.h>
+#include <sstream>
+#include <iostream>
 
 #pragma comment(lib, "bcrypt.lib")
 #pragma comment(lib, "ncrypt.lib")
 #pragma comment(lib, "crypt32.lib")
 
 const LPCWSTR TMPEncryptorHelper::KEY_NAME = L"AdWalletKey";
+
+const LPCWSTR PROVIDER = MS_PLATFORM_CRYPTO_PROVIDER;
 
 // Custom deleter for NCRYPT_KEY_HANDLE
 struct NCryptHandleDeleter
@@ -35,7 +38,7 @@ TMPEncryptorHelper::~TMPEncryptorHelper()
 {
 }
 
-std::string TMPEncryptorHelper::Encrypt(const std::string& plainText, const std::string& password)
+std::string TMPEncryptorHelper::Encrypt(const std::string& plainText, const SecureDescrData secureDescrData) const
 {
     SECURITY_STATUS status = ERROR_SUCCESS;
     std::string cipherText;
@@ -47,7 +50,7 @@ std::string TMPEncryptorHelper::Encrypt(const std::string& plainText, const std:
 
     // Open the storage provider
     NCRYPT_PROV_HANDLE hProvRaw = NULL;
-    status = NCryptOpenStorageProvider(&hProvRaw, MS_PLATFORM_CRYPTO_PROVIDER, 0);
+    status = NCryptOpenStorageProvider(&hProvRaw, PROVIDER, 0);
     if (status != ERROR_SUCCESS)
     {
         throw std::runtime_error("Error code: " + std::to_string(status) + " Failed to open TPM provider");
@@ -70,9 +73,36 @@ std::string TMPEncryptorHelper::Encrypt(const std::string& plainText, const std:
 
     DWORD keyLength = 2048;
     if (!isKeyAlreadyExist) {
+		//Set the key length to 2048 bits
+		 status = NCryptSetProperty(hKeyRaw, NCRYPT_LENGTH_PROPERTY, (PBYTE)&keyLength, sizeof(keyLength), 0);
+		if (status != ERROR_SUCCESS)
+		{
+			throw std::runtime_error("Error code: " + std::to_string(status) + " Failed to set key length");
+		}
+
+		// Set desired key properties
+		DWORD dwFlags = NCRYPT_ALLOW_DECRYPT_FLAG | NCRYPT_ALLOW_SIGNING_FLAG;
+		status = NCryptSetProperty(hKeyRaw, NCRYPT_LENGTH_PROPERTY, (PBYTE)&keyLength, sizeof(keyLength), 0);
+		if (status != ERROR_SUCCESS)
+		{
+			throw std::runtime_error("Error code: " + std::to_string(status) + " Failed to set key length");
+		}
+
+		// Set the security descriptor
+		//status = NCryptSetProperty(
+		//	hKeyRaw, 
+		//	NCRYPT_SECURITY_DESCR_PROPERTY, 
+		//	(PBYTE)secureDescrData.pSD, 
+		//	secureDescrData.cbSD, 
+		//	OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION
+		//);
+		//if (status != ERROR_SUCCESS)
+		//{
+		//	throw std::runtime_error("Error code: " + std::to_string(status) + " Failed to set security descriptor");
+		//}
+
 		// Set the UI policy to the password
 		NCRYPT_UI_POLICY UIPolicy = { 0 };
-		ZeroMemory(&UIPolicy, sizeof(UIPolicy));
 
 		UIPolicy.dwVersion = 1;
 		UIPolicy.dwFlags = NCRYPT_UI_FORCE_HIGH_PROTECTION_FLAG;
@@ -83,13 +113,6 @@ std::string TMPEncryptorHelper::Encrypt(const std::string& plainText, const std:
 		if (status != ERROR_SUCCESS) {
 			throw std::runtime_error("Error code: " + std::to_string(status) + " Failed to set UI policy");
 		}
-
-		// Set the key length to 2048 bits
-        status = NCryptSetProperty(hKeyRaw, NCRYPT_LENGTH_PROPERTY, (PBYTE)&keyLength, sizeof(keyLength), 0);
-        if (status != ERROR_SUCCESS)
-        {
-            throw std::runtime_error("Error code: " + std::to_string(status) + " Failed to set key length");
-        }
 
         // Finalize the key
         status = NCryptFinalizeKey(hKeyRaw, 0);
@@ -106,8 +129,8 @@ std::string TMPEncryptorHelper::Encrypt(const std::string& plainText, const std:
 
     // Check if the plaintext size is within the maximum allowed size for RSA encryption
 	keyLength = 0;
-	DWORD keyLenghtSize = sizeof(keyLength);
-	status = NCryptGetProperty(hKeyRaw, NCRYPT_LENGTH_PROPERTY, (PBYTE)&keyLength, keyLenghtSize, &keyLenghtSize, 0);
+	DWORD keyLengthSize = sizeof(keyLength);
+	status = NCryptGetProperty(hKeyRaw, NCRYPT_LENGTH_PROPERTY, (PBYTE)&keyLength, keyLengthSize, &keyLengthSize, 0);
 	if (status != ERROR_SUCCESS)
 	{
 		throw std::runtime_error("Error code: " + std::to_string(status) + " Failed to get key length");
@@ -142,7 +165,7 @@ std::string TMPEncryptorHelper::Encrypt(const std::string& plainText, const std:
     return cipherText;
 }
 
-std::string TMPEncryptorHelper::Decrypt(const std::string& chipherText, const std::string& password)
+std::string TMPEncryptorHelper::Decrypt(const std::string& chipherText) const
 {
 	SECURITY_STATUS status = ERROR_SUCCESS;
 	std::string plainText;
@@ -153,7 +176,7 @@ std::string TMPEncryptorHelper::Decrypt(const std::string& chipherText, const st
 
 	// Open the storage provider
 	NCRYPT_PROV_HANDLE hProvRaw = NULL;
-	status = NCryptOpenStorageProvider(&hProvRaw, MS_PLATFORM_KEY_STORAGE_PROVIDER, 0);
+	status = NCryptOpenStorageProvider(&hProvRaw, PROVIDER, 0);
 	if (status != ERROR_SUCCESS)
 	{
 		throw std::runtime_error("Error code: " + std::to_string(status) + " Failed to open TPM provider");
@@ -168,12 +191,6 @@ std::string TMPEncryptorHelper::Decrypt(const std::string& chipherText, const st
 		throw std::runtime_error("Error code: " + std::to_string(status) + " Failed to open key");
 	}
 	hKey.reset(reinterpret_cast<void*>(hKeyRaw));
-
-	//std::wstring wPassword(password.begin(), password.end());
-	//status = NCryptSetProperty(hKeyRaw, NCRYPT_PIN_PROPERTY, (PBYTE)wPassword.c_str(), ((wPassword.size() + 1) * sizeof(WCHAR)), 0);
-	//if (status != ERROR_SUCCESS) {
-	//	throw std::runtime_error("Error code: " + std::to_string(status) + " Failed to set PIN");
-	//}
 
 	PBYTE pbCipherText = (PBYTE)chipherText.data();
 	DWORD cbCipherText = (DWORD)chipherText.size();
@@ -200,6 +217,91 @@ std::string TMPEncryptorHelper::Decrypt(const std::string& chipherText, const st
 	plainText.assign((char*)plainBuffer.data(), cbPlainText);
 
 	return plainText;
+}
+
+void TMPEncryptorHelper::DeleteKey() const
+{
+	SECURITY_STATUS status = ERROR_SUCCESS;
+
+	// Use unique_ptr with custom deleters
+	std::unique_ptr<void, NCryptHandleDeleter> hProv(nullptr);
+	std::unique_ptr<void, NCryptHandleDeleter> hKey(nullptr);
+
+	// Open the storage provider
+	NCRYPT_PROV_HANDLE hProvRaw = NULL;
+	status = NCryptOpenStorageProvider(&hProvRaw, PROVIDER, 0);
+	if (status != ERROR_SUCCESS)
+	{
+		throw std::runtime_error("Error code: " + std::to_string(status) + " Failed to open TPM provider");
+	}
+	hProv.reset(reinterpret_cast<void*>(hProvRaw));
+
+	// Open an RSA key
+	NCRYPT_KEY_HANDLE hKeyRaw = NULL;
+	status = NCryptOpenKey(hProvRaw, &hKeyRaw, KEY_NAME, 0, 0);
+	if (status != ERROR_SUCCESS)
+	{
+		throw std::runtime_error("Error code: " + std::to_string(status) + " Failed to open key");
+	}
+	hKey.reset(reinterpret_cast<void*>(hKeyRaw));
+
+	// Delete the key
+	status = NCryptDeleteKey(hKeyRaw, 0);
+	if (status != ERROR_SUCCESS)
+	{
+		throw std::runtime_error("Error code: " + std::to_string(status) + " Failed to delete key");
+	}
+}
+
+int TMPEncryptorHelper::isWindowsTPMSupported() const
+{
+	SECURITY_STATUS status = ERROR_SUCCESS;
+
+	// Open the storage provider
+	NCRYPT_PROV_HANDLE hProvRaw = NULL;
+	status = NCryptOpenStorageProvider(&hProvRaw, PROVIDER, 0);
+	if (status != ERROR_SUCCESS)
+	{
+		throw std::runtime_error("Error code: " + std::to_string(status) + " Failed to open TPM provider");
+	}
+	std::unique_ptr<void, NCryptHandleDeleter> hProv(nullptr);
+	hProv.reset(reinterpret_cast<void*>(hProvRaw));
+
+	// If we have successfully opened the Platform Crypto Provider, it means TPM is present.
+   // Now, let's check the TPM version.
+	DWORD cbPlatformType = 0;
+	status = NCryptGetProperty(hProvRaw, NCRYPT_PCP_PLATFORM_TYPE_PROPERTY, NULL, NULL, &cbPlatformType, 0);
+	if (status != ERROR_SUCCESS)
+	{
+		throw std::runtime_error("Error code: " + std::to_string(status) + " Failed to get platform type");
+	}
+	std::vector<BYTE> platformTypeBuffer(cbPlatformType);
+	status = NCryptGetProperty(hProvRaw, NCRYPT_PCP_PLATFORM_TYPE_PROPERTY, platformTypeBuffer.data(), (DWORD)platformTypeBuffer.size(), &cbPlatformType, 0);
+	if (status != ERROR_SUCCESS)
+	{
+		throw std::runtime_error("Error code: " + std::to_string(status) + " Failed to get platform type");
+	}
+
+	
+	auto version = std::wstring((wchar_t*)platformTypeBuffer.data(), cbPlatformType);
+
+	auto type = ParsePlatformType(version);
+
+	return std::stoi(type);
+}
+
+std::wstring TMPEncryptorHelper::ParsePlatformType(const std::wstring& platformVersion)
+{
+	const std::wstring key = L"TPM-Version:";
+	auto start = platformVersion.find(key);
+	if (start == std::wstring::npos)
+	{
+		throw std::runtime_error("TPM-Version not found in input string");
+	}
+	start += key.size();
+	auto end = platformVersion.find(L'.', start);
+
+	return platformVersion.substr(start, end - start);
 }
 
 std::string TMPEncryptorHelper::Base64Encode(const std::string& data)

@@ -36,6 +36,15 @@
     <ClInclude Include="TMPEncryptorHelper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SecureDescrService.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MemoryDeallocation.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="UserAuth.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="TPMEncryptor.cpp">
@@ -48,6 +57,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="TMPEncryptorHelper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SecureDescrService.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="UserAuth.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
