@@ -39,6 +39,10 @@ BEGIN_MESSAGE_MAP(CTPMEncryptorDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_DELETE_KEY, &CTPMEncryptorDlg::OnBnClickedDeleteKey)
 	ON_BN_CLICKED(IDC_SECURE_AUTH, &CTPMEncryptorDlg::OnBnClickedSecureDescr)
 	ON_BN_CLICKED(IDC_CHECK_TPM, &CTPMEncryptorDlg::OnBnClickedCheckTpm)
+	ON_BN_CLICKED(IDC_CREATE_ECDH, &CTPMEncryptorDlg::OnBnClickedCreateEcdh)
+	ON_BN_CLICKED(IDC_GET_ECDH, &CTPMEncryptorDlg::OnBnClickedGetEcdh)
+	ON_BN_CLICKED(IDC_CREATE_CREDENTIAL, &CTPMEncryptorDlg::OnBnClickedCreateCredential)
+	ON_BN_CLICKED(IDC_TPM_CHECK, &CTPMEncryptorDlg::OnBnClickedTpmCheck)
 END_MESSAGE_MAP()
 
 
@@ -177,4 +181,60 @@ void CTPMEncryptorDlg::OnBnClickedCheckTpm()
 	catch (const std::exception& e) {
 		MessageBox(CString(e.what()));
 	}
+}
+
+void CTPMEncryptorDlg::OnBnClickedCreateEcdh()
+{
+	try {
+		m_encryptor.CreateECDHKey();
+		MessageBox(L"ECDH key created");
+	}
+	catch (const std::exception& e) {
+		MessageBox(CString(e.what()));
+	}
+}
+
+void CTPMEncryptorDlg::OnBnClickedGetEcdh()
+{
+    try {
+        auto hKey = m_encryptor.GetECDHKey();
+        CString cstr;
+        cstr.Format(L"ECDH key: %llu", hKey);
+        MessageBox(cstr);
+    }
+    catch (const std::exception& e) {
+        MessageBox(CString(e.what()));
+    }
+}
+
+void CTPMEncryptorDlg::OnBnClickedCreateCredential()
+{
+	try {
+		auto result = m_userAuth.CreateKeyCredentialAsync().get();
+		if (result) {
+			MessageBox(L"Key credential created");
+		}
+		else {
+			MessageBox(L"Failed to create key credential");
+		}
+	}
+	catch (const std::exception& e) {
+		MessageBox(CString(e.what()));
+	}
+}
+
+
+void CTPMEncryptorDlg::OnBnClickedTpmCheck()
+{	
+	auto op = m_userAuth.DeleteKeyCredential();
+	op.Completed([this](winrt::Windows::Foundation::IAsyncAction const& asyncOp, winrt::Windows::Foundation::AsyncStatus status)
+		{
+			try {
+				asyncOp.GetResults();
+				MessageBox(L"Key credential deleted");
+			}
+			catch (const winrt::hresult_error& e) {
+				MessageBox(CString(e.message().c_str()));
+			}
+		});
 }

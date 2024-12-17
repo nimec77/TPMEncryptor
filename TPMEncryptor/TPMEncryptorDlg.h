@@ -46,4 +46,8 @@ public:
 	afx_msg void OnBnClickedDeleteKey();
 	afx_msg void OnBnClickedSecureDescr();
 	afx_msg void OnBnClickedCheckTpm();
+	afx_msg void OnBnClickedCreateEcdh();
+	afx_msg void OnBnClickedGetEcdh();
+	afx_msg void OnBnClickedCreateCredential();
+	afx_msg void OnBnClickedTpmCheck();
 };

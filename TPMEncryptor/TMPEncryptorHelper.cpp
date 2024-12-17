@@ -1,11 +1,7 @@
 #include "pch.h"
 #include "TMPEncryptorHelper.h"
-#include <bcrypt.h>
-#include <ncrypt.h>
-#include <stdexcept>
 #include <vector>
 #include <memory>
-#include <wincrypt.h>
 #include <sstream>
 #include <iostream>
 
@@ -25,6 +21,28 @@ struct NCryptHandleDeleter
 		if (handle != NULL)
 		{
 			NCryptFreeObject(reinterpret_cast<NCRYPT_HANDLE>(handle));
+		}
+	}
+};
+
+struct BCryptHandleDeleter
+{
+	void operator()(BCRYPT_ALG_HANDLE handle) const
+	{
+		if (handle != NULL)
+		{
+			BCryptCloseAlgorithmProvider(handle, 0);
+		}
+	}
+};
+
+struct BCryptKeyHandleDeleter
+{
+	void operator()(BCRYPT_KEY_HANDLE handle) const
+	{
+		if (handle != NULL)
+		{
+			BCryptDestroyKey(handle);
 		}
 	}
 };
@@ -288,6 +306,88 @@ int TMPEncryptorHelper::isWindowsTPMSupported() const
 	auto type = ParsePlatformType(version);
 
 	return std::stoi(type);
+}
+
+void TMPEncryptorHelper::CreateECDHKey() const
+{
+	SECURITY_STATUS status = ERROR_SUCCESS;
+
+	// Open the storage provider
+	NCRYPT_PROV_HANDLE hProvRaw = NULL;
+	status = NCryptOpenStorageProvider(&hProvRaw, PROVIDER, 0);
+	CheckStatus(status, "Failed to open TPM provider");
+	std::unique_ptr<void, NCryptHandleDeleter> hProv(nullptr);
+	hProv.reset(reinterpret_cast<void*>(hProvRaw));
+
+	NCRYPT_KEY_HANDLE hKeyRaw = NULL;
+	status = NCryptCreatePersistedKey(hProvRaw, &hKeyRaw, NCRYPT_ECDH_P384_ALGORITHM, KEY_NAME, 0, 0);
+	if (status == NTE_EXISTS)
+	{
+		status = NCryptOpenKey(hProvRaw, &hKeyRaw, KEY_NAME, 0, 0);
+		CheckStatus(status, "Failed to open key");
+
+		return;
+	}
+	CheckStatus(status, "Failed to create key");
+	std::unique_ptr<void, NCryptHandleDeleter> hKey(nullptr);
+	hKey.reset(reinterpret_cast<void*>(hKeyRaw));
+
+	// Set the key length to 384 bits
+	DWORD keyLength = 384;
+	status = NCryptSetProperty(hKeyRaw, NCRYPT_LENGTH_PROPERTY, (PBYTE)&keyLength, sizeof(keyLength), 0);
+	CheckStatus(status, "Failed to set key length");
+
+	status = NCryptFinalizeKey(hKeyRaw, 0);
+	CheckStatus(status, "Failed to finalize key");
+}
+
+NCRYPT_KEY_HANDLE TMPEncryptorHelper::GetECDHKey() const
+{
+	SECURITY_STATUS status = ERROR_SUCCESS;
+
+	// Open the storage provider
+	NCRYPT_PROV_HANDLE hProvRaw = NULL;
+	status = NCryptOpenStorageProvider(&hProvRaw, PROVIDER, 0);
+	CheckStatus(status, "Failed to open TPM provider");
+	std::unique_ptr<void, NCryptHandleDeleter> hProv(nullptr);
+	hProv.reset(reinterpret_cast<void*>(hProvRaw));
+
+	NCRYPT_KEY_HANDLE hKey = NULL;
+
+	status = NCryptOpenKey(hProvRaw, &hKey, KEY_NAME, 0, 0);
+	CheckStatus(status, "Failed to open key");
+
+	return hKey;
+}
+
+void TMPEncryptorHelper::CreateAESKey() const
+{
+	NTSTATUS status = ERROR_SUCCESS;
+	BCRYPT_ALG_HANDLE hAlgRaw = NULL;
+	status = BCryptOpenAlgorithmProvider(&hAlgRaw, BCRYPT_AES_ALGORITHM, NULL, 0);
+	CheckStatus(status, "Failed to open AES algorithm provider");
+	std::unique_ptr<void, BCryptHandleDeleter> hAlg(nullptr);
+	hAlg.reset(reinterpret_cast<void*>(hAlgRaw));
+
+	status = BCryptSetProperty(hAlgRaw, BCRYPT_CHAINING_MODE, (PBYTE)BCRYPT_CHAIN_MODE_GCM, sizeof(BCRYPT_CHAIN_MODE_GCM), 0);
+	CheckStatus(status, "Failed to set chaining mode");
+
+	// Set the key length to 256 bits
+	DWORD keyLength = 256;
+	status = BCryptSetProperty(hAlgRaw, BCRYPT_KEY_LENGTH, (PBYTE)&keyLength, sizeof(keyLength), 0);
+	CheckStatus(status, "Failed to set key length");
+
+	DWORD cbKeyObject = 0;
+	DWORD cbData = 0;
+	status = BCryptGetProperty(hAlgRaw, BCRYPT_OBJECT_LENGTH, (PBYTE)&cbKeyObject, sizeof(DWORD), &cbData, 0);
+	CheckStatus(status, "Failed to get key object length");
+
+	std::vector<BYTE> keyObject(cbKeyObject);
+
+	//BCRYPT_KEY_HANDLE hKeyRaw = NULL;
+	//status = BCryptGenerateSymmetricKey(hAlgRaw, &hKeyRaw, keyObject.data(), (DWORD)keyObject.size(), NULL, 0, 0);
+
+	// TODO: not complete yet
 }
 
 std::wstring TMPEncryptorHelper::ParsePlatformType(const std::wstring& platformVersion)
