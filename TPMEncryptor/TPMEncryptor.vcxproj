@@ -268,6 +268,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="framework.h" />
+    <ClInclude Include="KeyHandleWrapper.h" />
+    <ClInclude Include="SecureService.h" />
+    <ClInclude Include="WinRTErrorExtension.h" />
     <ClInclude Include="MemoryDeallocation.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Resource.h" />
@@ -277,7 +280,8 @@
     <ClInclude Include="TMPEncryptorHelper.h" />
     <ClInclude Include="TPMEncryptor.h" />
     <ClInclude Include="TPMEncryptorDlg.h" />
-    <ClInclude Include="UserAuth.h" />
+    <ClInclude Include="WinHello.h" />
+    <ClInclude Include="WinRTUtil.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -289,11 +293,13 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="SecureDescrService.cpp" />
+    <ClCompile Include="SecureService.cpp" />
     <ClCompile Include="StringConverter.cpp" />
     <ClCompile Include="TMPEncryptorHelper.cpp" />
     <ClCompile Include="TPMEncryptor.cpp" />
     <ClCompile Include="TPMEncryptorDlg.cpp" />
-    <ClCompile Include="UserAuth.cpp" />
+    <ClCompile Include="WinHello.cpp" />
+    <ClCompile Include="WinRTUtil.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="TPMEncryptor.rc" />

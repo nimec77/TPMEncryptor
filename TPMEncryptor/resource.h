@@ -16,6 +16,8 @@
 #define IDC_CREATE_CREDENTIAL           1009
 #define IDC_TPM_CHECK                   1010
 #define IDC_DELETE_CRED                 1010
+#define IDC_OPEN_CRED                   1011
+#define IDC_CREATE_KEY                  1012
 
 // Next default values for new objects
 // 
@@ -23,7 +25,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        130
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1011
+#define _APS_NEXT_CONTROL_VALUE         1013
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

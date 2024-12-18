@@ -1,34 +1,23 @@
 #include "pch.h"
 #include "SecureDescrService.h"
+#include "MemoryDeallocation.h"
 #include <sddl.h>
 #include <stdexcept>
 #include <memory>
 #include <strsafe.h>
 #include <aclapi.h>
 
+
 #pragma comment(lib, "advapi32.lib")
-
-
-// Custom deleter for NCRYPT_KEY_HANDLE
-struct TokenHandleDeleter
-{
-	void operator()(void* handle) const
-	{
-		if (handle != NULL)
-		{
-			CloseHandle(reinterpret_cast<HANDLE>(handle));
-		}
-	}
-};
 
 
 std::wstring SecureDescrService::GetTokenUserString() const
 {
 
 	// Use unique_ptr with custom deleters
-	std::unique_ptr<void, TokenHandleDeleter> hToken(nullptr);
-	std::unique_ptr<void, MemoryDeallocation> pTokenUser(nullptr);
-	std::unique_ptr<void, MemoryDeallocation> pStringSid(nullptr);
+	std::unique_ptr<void, TPMEncryptor::TokenHandleDeleter> hToken(nullptr);
+	std::unique_ptr<void, TPMEncryptor::MemoryDeallocation> pTokenUser(nullptr);
+	std::unique_ptr<void, TPMEncryptor::MemoryDeallocation> pStringSid(nullptr);
 
 	HANDLE hTokenRaw = NULL;
 	PTOKEN_USER pTokenUserRaw = NULL;
@@ -102,7 +91,7 @@ PSID SecureDescrService::GetCurrentUserSid() const
 		auto error = GetLastError();
 		throw std::runtime_error("Failed to open process token: " + std::to_string(error));
 	}
-	std::unique_ptr<void, TokenHandleDeleter> hToken(nullptr);
+	std::unique_ptr<void, TPMEncryptor::TokenHandleDeleter> hToken(nullptr);
 	hToken.reset(reinterpret_cast<void*>(hTokenRaw));
 
 	// First call to get the required buffer size
@@ -124,7 +113,7 @@ PSID SecureDescrService::GetCurrentUserSid() const
 		auto error = GetLastError();
 		throw std::runtime_error("Failed to get token user: " + std::to_string(error));
 	}
-	std::unique_ptr<void, MemoryDeallocation> pTokenUser(nullptr);
+	std::unique_ptr<void, TPMEncryptor::MemoryDeallocation> pTokenUser(nullptr);
 	pTokenUser.reset(reinterpret_cast<void*>(pTokenUserRaw));
 
 	// Duplicate the SID so we can own it
@@ -160,7 +149,7 @@ SecureDescrData SecureDescrService::CreateSecureDescriptor(const PSID pSid) cons
 	{
 		throw std::runtime_error("Failed to set entries in ACL: " + std::to_string(dwRes));
 	}
-	std::unique_ptr<void, MemoryDeallocation> pACL(nullptr);
+	std::unique_ptr<void, TPMEncryptor::MemoryDeallocation> pACL(nullptr);
 	pACL.reset(reinterpret_cast<void*>(pACLRaw));
 
 	// Create and initialize a SECURITY_DESCRIPTOR
@@ -169,7 +158,7 @@ SecureDescrData SecureDescrService::CreateSecureDescriptor(const PSID pSid) cons
 	{
 		throw std::runtime_error("Failed to allocate memory for security descriptor");
 	}
-	std::unique_ptr<void, MemoryDeallocation> pSD(nullptr);
+	std::unique_ptr<void, TPMEncryptor::MemoryDeallocation> pSD(nullptr);
 
 	if (!InitializeSecurityDescriptor(pSDRaw, SECURITY_DESCRIPTOR_REVISION))
 	{

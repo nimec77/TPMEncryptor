@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "TMPEncryptorHelper.h"
+#include "MemoryDeallocation.h"
 #include <vector>
 #include <memory>
 #include <sstream>
@@ -12,41 +13,6 @@
 const LPCWSTR TMPEncryptorHelper::KEY_NAME = L"AdWalletKey";
 
 const LPCWSTR PROVIDER = MS_PLATFORM_CRYPTO_PROVIDER;
-
-// Custom deleter for NCRYPT_KEY_HANDLE
-struct NCryptHandleDeleter
-{
-	void operator()(void* handle) const
-	{
-		if (handle != NULL)
-		{
-			NCryptFreeObject(reinterpret_cast<NCRYPT_HANDLE>(handle));
-		}
-	}
-};
-
-struct BCryptHandleDeleter
-{
-	void operator()(BCRYPT_ALG_HANDLE handle) const
-	{
-		if (handle != NULL)
-		{
-			BCryptCloseAlgorithmProvider(handle, 0);
-		}
-	}
-};
-
-struct BCryptKeyHandleDeleter
-{
-	void operator()(BCRYPT_KEY_HANDLE handle) const
-	{
-		if (handle != NULL)
-		{
-			BCryptDestroyKey(handle);
-		}
-	}
-};
-
 
 TMPEncryptorHelper::TMPEncryptorHelper()
 {
@@ -63,8 +29,8 @@ std::string TMPEncryptorHelper::Encrypt(const std::string& plainText, const Secu
 	bool isKeyAlreadyExist = false;
 
     // Use unique_ptr with custom deleters
-	std::unique_ptr<void, NCryptHandleDeleter> hProv(nullptr);
-	std::unique_ptr<void, NCryptHandleDeleter> hKey(nullptr);
+	std::unique_ptr<void, TPMEncryptor::NCryptHandleDeleter> hProv(nullptr);
+	std::unique_ptr<void, TPMEncryptor::NCryptHandleDeleter> hKey(nullptr);
 
     // Open the storage provider
     NCRYPT_PROV_HANDLE hProvRaw = NULL;
@@ -189,8 +155,8 @@ std::string TMPEncryptorHelper::Decrypt(const std::string& chipherText) const
 	std::string plainText;
 
 	// Use unique_ptr with custom deleters
-	std::unique_ptr<void, NCryptHandleDeleter> hProv(nullptr);
-	std::unique_ptr<void, NCryptHandleDeleter> hKey(nullptr);
+	std::unique_ptr<void, TPMEncryptor::NCryptHandleDeleter> hProv(nullptr);
+	std::unique_ptr<void, TPMEncryptor::NCryptHandleDeleter> hKey(nullptr);
 
 	// Open the storage provider
 	NCRYPT_PROV_HANDLE hProvRaw = NULL;
@@ -242,8 +208,8 @@ void TMPEncryptorHelper::DeleteKey() const
 	SECURITY_STATUS status = ERROR_SUCCESS;
 
 	// Use unique_ptr with custom deleters
-	std::unique_ptr<void, NCryptHandleDeleter> hProv(nullptr);
-	std::unique_ptr<void, NCryptHandleDeleter> hKey(nullptr);
+	std::unique_ptr<void, TPMEncryptor::NCryptHandleDeleter> hProv(nullptr);
+	std::unique_ptr<void, TPMEncryptor::NCryptHandleDeleter> hKey(nullptr);
 
 	// Open the storage provider
 	NCRYPT_PROV_HANDLE hProvRaw = NULL;
@@ -282,7 +248,7 @@ int TMPEncryptorHelper::isWindowsTPMSupported() const
 	{
 		throw std::runtime_error("Error code: " + std::to_string(status) + " Failed to open TPM provider");
 	}
-	std::unique_ptr<void, NCryptHandleDeleter> hProv(nullptr);
+	std::unique_ptr<void, TPMEncryptor::NCryptHandleDeleter> hProv(nullptr);
 	hProv.reset(reinterpret_cast<void*>(hProvRaw));
 
 	// If we have successfully opened the Platform Crypto Provider, it means TPM is present.
@@ -316,7 +282,7 @@ void TMPEncryptorHelper::CreateECDHKey() const
 	NCRYPT_PROV_HANDLE hProvRaw = NULL;
 	status = NCryptOpenStorageProvider(&hProvRaw, PROVIDER, 0);
 	CheckStatus(status, "Failed to open TPM provider");
-	std::unique_ptr<void, NCryptHandleDeleter> hProv(nullptr);
+	std::unique_ptr<void, TPMEncryptor::NCryptHandleDeleter> hProv(nullptr);
 	hProv.reset(reinterpret_cast<void*>(hProvRaw));
 
 	NCRYPT_KEY_HANDLE hKeyRaw = NULL;
@@ -329,7 +295,7 @@ void TMPEncryptorHelper::CreateECDHKey() const
 		return;
 	}
 	CheckStatus(status, "Failed to create key");
-	std::unique_ptr<void, NCryptHandleDeleter> hKey(nullptr);
+	std::unique_ptr<void, TPMEncryptor::NCryptHandleDeleter> hKey(nullptr);
 	hKey.reset(reinterpret_cast<void*>(hKeyRaw));
 
 	// Set the key length to 384 bits
@@ -349,7 +315,7 @@ NCRYPT_KEY_HANDLE TMPEncryptorHelper::GetECDHKey() const
 	NCRYPT_PROV_HANDLE hProvRaw = NULL;
 	status = NCryptOpenStorageProvider(&hProvRaw, PROVIDER, 0);
 	CheckStatus(status, "Failed to open TPM provider");
-	std::unique_ptr<void, NCryptHandleDeleter> hProv(nullptr);
+	std::unique_ptr<void, TPMEncryptor::NCryptHandleDeleter> hProv(nullptr);
 	hProv.reset(reinterpret_cast<void*>(hProvRaw));
 
 	NCRYPT_KEY_HANDLE hKey = NULL;
@@ -360,34 +326,29 @@ NCRYPT_KEY_HANDLE TMPEncryptorHelper::GetECDHKey() const
 	return hKey;
 }
 
-void TMPEncryptorHelper::CreateAESKey() const
+BCRYPT_KEY_HANDLE TMPEncryptorHelper::CreateAESKey(const NCRYPT_KEY_HANDLE hPrivKey, const std::vector<uint8_t>& peerPublicKey) const
 {
-	NTSTATUS status = ERROR_SUCCESS;
-	BCRYPT_ALG_HANDLE hAlgRaw = NULL;
-	status = BCryptOpenAlgorithmProvider(&hAlgRaw, BCRYPT_AES_ALGORITHM, NULL, 0);
-	CheckStatus(status, "Failed to open AES algorithm provider");
-	std::unique_ptr<void, BCryptHandleDeleter> hAlg(nullptr);
-	hAlg.reset(reinterpret_cast<void*>(hAlgRaw));
+	SECURITY_STATUS status = ERROR_SUCCESS;
 
-	status = BCryptSetProperty(hAlgRaw, BCRYPT_CHAINING_MODE, (PBYTE)BCRYPT_CHAIN_MODE_GCM, sizeof(BCRYPT_CHAIN_MODE_GCM), 0);
-	CheckStatus(status, "Failed to set chaining mode");
+	// Open the storage provider
+	NCRYPT_PROV_HANDLE hProvRaw = NULL;
+	status = NCryptOpenStorageProvider(&hProvRaw, PROVIDER, 0);
+	CheckStatus(status, "Failed to open TPM provider");
+	std::unique_ptr<void, TPMEncryptor::NCryptHandleDeleter> hProv(reinterpret_cast<void*>(hProvRaw));
 
-	// Set the key length to 256 bits
-	DWORD keyLength = 256;
-	status = BCryptSetProperty(hAlgRaw, BCRYPT_KEY_LENGTH, (PBYTE)&keyLength, sizeof(keyLength), 0);
-	CheckStatus(status, "Failed to set key length");
+	// Import peer’s public key
+	// peerPublicKey should be in ECC public key blob format: BCRYPT_ECCKEY_BLOB + X + Y
+	NCRYPT_KEY_HANDLE hPeerPubKeyRaw = NULL;
+	status = NCryptImportKey(hProvRaw, 0, BCRYPT_ECCPUBLIC_BLOB, nullptr, &hPeerPubKeyRaw, (PBYTE)peerPublicKey.data(), (DWORD)peerPublicKey.size(), 0);
+	CheckStatus(status, "Failed to import peer public key.");
+	std::unique_ptr<void, TPMEncryptor::NCryptHandleDeleter> hPeerPubKey(reinterpret_cast<void*>(hPeerPubKeyRaw));
 
-	DWORD cbKeyObject = 0;
-	DWORD cbData = 0;
-	status = BCryptGetProperty(hAlgRaw, BCRYPT_OBJECT_LENGTH, (PBYTE)&cbKeyObject, sizeof(DWORD), &cbData, 0);
-	CheckStatus(status, "Failed to get key object length");
+	// Derive shared secret
+	NCRYPT_SECRET_HANDLE hSecret = 0;
+	status = NCryptSecretAgreement(hPrivKey, hPeerPubKeyRaw, &hSecret, 0);
+	CheckStatus(status, "Failed to derive shared secret.");
 
-	std::vector<BYTE> keyObject(cbKeyObject);
-
-	//BCRYPT_KEY_HANDLE hKeyRaw = NULL;
-	//status = BCryptGenerateSymmetricKey(hAlgRaw, &hKeyRaw, keyObject.data(), (DWORD)keyObject.size(), NULL, 0, 0);
-
-	// TODO: not complete yet
+	return BCRYPT_KEY_HANDLE();
 }
 
 std::wstring TMPEncryptorHelper::ParsePlatformType(const std::wstring& platformVersion)
@@ -404,46 +365,21 @@ std::wstring TMPEncryptorHelper::ParsePlatformType(const std::wstring& platformV
 	return platformVersion.substr(start, end - start);
 }
 
-std::string TMPEncryptorHelper::Base64Encode(const std::string& data)
+ NCRYPT_KEY_HANDLE TMPEncryptorHelper::GetTPMKey() const
 {
-	std::string encodedData;
+	SECURITY_STATUS status = ERROR_SUCCESS;
 
-	DWORD base64Size = 0;
-	if (!CryptBinaryToStringA((const BYTE*)data.data(), (DWORD)data.size(), CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF, NULL, &base64Size))
-	{
-		throw std::runtime_error("Failed to get base64 size");
-	}
+	// Open the storage provider
+	NCRYPT_PROV_HANDLE hProvRaw = NULL;
+	status = NCryptOpenStorageProvider(&hProvRaw, PROVIDER, 0);
+	CheckStatus(status, "Failed to open TPM provider");
+	std::unique_ptr<void, TPMEncryptor::NCryptHandleDeleter> hProv(nullptr);
+	hProv.reset(reinterpret_cast<void*>(hProvRaw));
 
-	std::vector<char> base64String(base64Size);
+	// Open an RSA key
+	NCRYPT_KEY_HANDLE hKey = NULL;
+	status = NCryptOpenKey(hProvRaw, &hKey, KEY_NAME, 0, 0);
+	CheckStatus(status, "Failed to open key");
 
-	if (!CryptBinaryToStringA((const BYTE*)data.data(), (DWORD)data.size(), CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF, base64String.data(), &base64Size))
-	{
-		throw std::runtime_error("Failed to encode data to base64");
-	}
-
-	encodedData.assign(base64String.data(), base64Size);
-
-	return encodedData;
-}
-
-std::string TMPEncryptorHelper::Base64Decode(const std::string& input)
-{
-	std::string decodedData;
-
-	DWORD binarySize = 0;
-	if (!CryptStringToBinaryA(input.data(), (DWORD)input.size(), CRYPT_STRING_BASE64, NULL, &binarySize, NULL, NULL))
-	{
-		throw std::runtime_error("Failed to get binary size");
-	}
-
-	std::vector<BYTE> binaryData(binarySize);
-
-	if (!CryptStringToBinaryA(input.data(), (DWORD)input.size(), CRYPT_STRING_BASE64, binaryData.data(), &binarySize, NULL, NULL))
-	{
-		throw std::runtime_error("Failed to decode base64 data");
-	}
-
-	decodedData.assign((char*)binaryData.data(), binarySize);
-
-	return decodedData;
+	return hKey;
 }

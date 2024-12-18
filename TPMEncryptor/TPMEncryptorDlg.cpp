@@ -6,6 +6,7 @@
 #include "framework.h"
 #include "TPMEncryptor.h"
 #include "TPMEncryptorDlg.h"
+#include "StringConverter.h"
 #include "afxdialogex.h"
 #include <exception>
 #include <string>
@@ -43,6 +44,8 @@ BEGIN_MESSAGE_MAP(CTPMEncryptorDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_GET_ECDH, &CTPMEncryptorDlg::OnBnClickedGetEcdh)
 	ON_BN_CLICKED(IDC_CREATE_CREDENTIAL, &CTPMEncryptorDlg::OnBnClickedCreateCredential)
 	ON_BN_CLICKED(IDC_TPM_CHECK, &CTPMEncryptorDlg::OnBnClickedTpmCheck)
+	ON_BN_CLICKED(IDC_OPEN_CRED, &CTPMEncryptorDlg::OnBnClickedOpenCred)
+	ON_BN_CLICKED(IDC_CREATE_KEY, &CTPMEncryptorDlg::OnBnClickedCreateKey)
 END_MESSAGE_MAP()
 
 
@@ -110,7 +113,7 @@ void CTPMEncryptorDlg::OnBnClickedEncrytpButton()
 		auto secureDescrData = m_secureDescrService.CreateSecureDescriptor(pSid);
 		std::string convertedString(pszConvertedAnsiString);
 		std::string encrypted = m_encryptor.Encrypt(convertedString, secureDescrData);
-		std::string base64Encoded = TMPEncryptorHelper::Base64Encode(encrypted);
+		std::string base64Encoded = StringConverter::Base64Encode(encrypted);
 		CString cstr(base64Encoded.c_str());
 		SetDlgItemText(IDC_ENCRYTPED_TEXT, cstr);
 		MessageBox(L"Encrypted!");
@@ -129,7 +132,7 @@ void CTPMEncryptorDlg::OnBnClickedDecrytpButton()
 	try {
 		CT2CA pszConvertedAnsiString(chipherText);
 		std::string convertedString(pszConvertedAnsiString);
-		std::string base64Decoded = TMPEncryptorHelper::Base64Decode(convertedString);
+		std::string base64Decoded = StringConverter::Base64Decode(convertedString);
 		std::string decrypted = m_encryptor.Decrypt(base64Decoded);
 		CString cstr(decrypted.c_str());
 		MessageBox(L"Decrypted: " + cstr);
@@ -155,7 +158,7 @@ void CTPMEncryptorDlg::OnBnClickedDeleteKey()
 void CTPMEncryptorDlg::OnBnClickedSecureDescr()
 {
 	try {
-		auto isAuth = m_userAuth.AuthenticateAsync().get();
+		auto isAuth = m_winHello.AuthenticateAsync().get();
 		if (isAuth) {
 			MessageBox(L"Authenticated!");
 		}
@@ -209,29 +212,70 @@ void CTPMEncryptorDlg::OnBnClickedGetEcdh()
 
 void CTPMEncryptorDlg::OnBnClickedCreateCredential()
 {
-	try {
-		auto result = m_userAuth.CreateKeyCredentialAsync().get();
-		if (result) {
-			MessageBox(L"Key credential created");
-		}
-		else {
-			MessageBox(L"Failed to create key credential");
-		}
-	}
-	catch (const std::exception& e) {
-		MessageBox(CString(e.what()));
-	}
+	auto op = m_winHello.CreateKeyCredentialAsync();
+	op.Completed([this](winrt::Windows::Foundation::IAsyncOperation<bool> const& asyncOp, winrt::Windows::Foundation::AsyncStatus status)
+		{
+			try {
+				auto result = asyncOp.GetResults();
+				if (result) {
+					MessageBox(L"Key credential created");
+				}
+				else {
+					MessageBox(L"Failed to create key credential");
+				}
+			}
+			catch (const winrt::hresult_error& e) {
+				MessageBox(CString(e.message().c_str()));
+			}
+		});
 }
 
 
 void CTPMEncryptorDlg::OnBnClickedTpmCheck()
 {	
-	auto op = m_userAuth.DeleteKeyCredential();
+	auto op = m_winHello.DeleteKeyCredential();
 	op.Completed([this](winrt::Windows::Foundation::IAsyncAction const& asyncOp, winrt::Windows::Foundation::AsyncStatus status)
 		{
 			try {
 				asyncOp.GetResults();
 				MessageBox(L"Key credential deleted");
+			}
+			catch (const winrt::hresult_error& e) {
+				MessageBox(CString(e.message().c_str()));
+			}
+		});
+}
+
+
+void CTPMEncryptorDlg::OnBnClickedOpenCred()
+{
+	auto op = m_winHello.OpenCredentialAsync();
+	op.Completed([this](winrt::Windows::Foundation::IAsyncOperation<bool> const& asyncOp, winrt::Windows::Foundation::AsyncStatus status)
+		{
+			try {
+				auto result = asyncOp.GetResults();
+				if (result) {
+					MessageBox(L"Key credential opened");
+				}
+				else {
+					MessageBox(L"Failed to open key credential");
+				}
+			}
+			catch (const winrt::hresult_error& e) {
+				MessageBox(CString(e.message().c_str()));
+			}
+		});
+}
+
+
+void CTPMEncryptorDlg::OnBnClickedCreateKey()
+{
+	auto op = m_winHello.GetWindowsHelloPublicKeyAsync();
+	op.Completed([this](winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Storage::Streams::IBuffer> const& asyncOp, winrt::Windows::Foundation::AsyncStatus status)
+		{
+			try {
+				auto result = asyncOp.GetResults();
+				MessageBox(L"Key got");
 			}
 			catch (const winrt::hresult_error& e) {
 				MessageBox(CString(e.message().c_str()));
