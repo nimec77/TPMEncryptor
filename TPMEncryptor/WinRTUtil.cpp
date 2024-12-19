@@ -6,11 +6,14 @@
 using namespace winrt;
 using namespace Windows::Storage::Streams;
 
-inline std::vector<uint8_t> WinRTUtil::IBufferToVector(winrt::Windows::Storage::Streams::IBuffer buffer)
+namespace WinRTUtil
 {
-    std::vector<uint8_t> vec(buffer.Length());
-    auto reader = DataReader::FromBuffer(buffer);
-    reader.ReadBytes(winrt::array_view<uint8_t>(vec));
+    std::vector<uint8_t> IBufferToVector(const winrt::Windows::Storage::Streams::IBuffer& buffer)
+    {
+        std::vector<uint8_t> vec(buffer.Length());
+        auto reader = DataReader::FromBuffer(buffer);
+        reader.ReadBytes(winrt::array_view<uint8_t>(vec));
 
-    return vec;
+        return vec;
+    }
 }

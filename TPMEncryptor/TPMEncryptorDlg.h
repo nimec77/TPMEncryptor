@@ -8,6 +8,7 @@
 #include "SecureDescrService.h"
 #include "MemoryDeallocation.h"
 #include "WinHello.h"
+#include "SecureService.h"
 
 // CTPMEncryptorDlg dialog
 class CTPMEncryptorDlg : public CDialogEx
@@ -42,6 +43,8 @@ private:
 	TMPEncryptorHelper m_encryptor;
 	SecureDescrService m_secureDescrService;
 	WinHello m_winHello;
+	SecureService m_secureService;
+	
 public:
 	afx_msg void OnBnClickedDeleteKey();
 	afx_msg void OnBnClickedSecureDescr();
@@ -49,7 +52,7 @@ public:
 	afx_msg void OnBnClickedCreateEcdh();
 	afx_msg void OnBnClickedGetEcdh();
 	afx_msg void OnBnClickedCreateCredential();
-	afx_msg void OnBnClickedTpmCheck();
 	afx_msg void OnBnClickedOpenCred();
 	afx_msg void OnBnClickedCreateKey();
+	afx_msg void OnBnClickedDeleteCred();
 };

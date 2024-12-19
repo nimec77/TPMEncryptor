@@ -68,9 +68,11 @@ IAsyncOperation<bool> WinHello::CreateKeyCredentialAsync()
 	co_return keyCreationResult.Status() == KeyCredentialStatus::Success;
 }
 
-IAsyncAction WinHello::DeleteKeyCredential()
+IAsyncOperation<IInspectable> WinHello::DeleteKeyCredential()
 {
 	co_await KeyCredentialManager::DeleteAsync(CREDETIAL_ID);
+
+	co_return TPMEncryptor::IInspectableWrapper<bool>::box(true);
 }
 
 IAsyncOperation<bool> WinHello::OpenCredentialAsync()
@@ -98,7 +100,7 @@ IAsyncOperation<IBuffer> WinHello::GetWindowsHelloPublicKeyAsync()
 	CheckKeyCredentialStatus(status);
 
 	auto keyCredential = keyCredentialRetrievalResult.Credential();
-	auto publicKey = keyCredential.RetrievePublicKey(CryptographicPublicKeyBlobType::BCryptPublicKey);
+	auto publicKey = keyCredential.RetrievePublicKey();
 
 	co_return publicKey;
 }

@@ -1,5 +1,7 @@
 #pragma once
+
 #include "WinRTErrorExtension.h"
+#include "MemoryDeallocation.h"
 
 
 #include <winrt/windows.foundation.h>
@@ -12,7 +14,8 @@ public:
 
 	static winrt::Windows::Foundation::IAsyncOperation<bool> AuthenticateAsync();
 	static winrt::Windows::Foundation::IAsyncOperation<bool> CreateKeyCredentialAsync();
-	static winrt::Windows::Foundation::IAsyncAction DeleteKeyCredential();
+	//static winrt::Windows::Foundation::IAsyncAction DeleteKeyCredential();
+	static winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Foundation::IInspectable> DeleteKeyCredential();
 	static winrt::Windows::Foundation::IAsyncOperation<bool> OpenCredentialAsync();
 	static winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Storage::Streams::IBuffer> GetWindowsHelloPublicKeyAsync();
 

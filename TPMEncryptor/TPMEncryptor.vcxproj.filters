@@ -57,9 +57,6 @@
     <ClInclude Include="WinRTUtil.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="KeyHandleWrapper.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="TPMEncryptor.cpp">

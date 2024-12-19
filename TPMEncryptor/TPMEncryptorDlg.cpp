@@ -39,13 +39,12 @@ BEGIN_MESSAGE_MAP(CTPMEncryptorDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_DECRYTP_BUTTON, &CTPMEncryptorDlg::OnBnClickedDecrytpButton)
 	ON_BN_CLICKED(IDC_DELETE_KEY, &CTPMEncryptorDlg::OnBnClickedDeleteKey)
 	ON_BN_CLICKED(IDC_SECURE_AUTH, &CTPMEncryptorDlg::OnBnClickedSecureDescr)
-	ON_BN_CLICKED(IDC_CHECK_TPM, &CTPMEncryptorDlg::OnBnClickedCheckTpm)
 	ON_BN_CLICKED(IDC_CREATE_ECDH, &CTPMEncryptorDlg::OnBnClickedCreateEcdh)
 	ON_BN_CLICKED(IDC_GET_ECDH, &CTPMEncryptorDlg::OnBnClickedGetEcdh)
 	ON_BN_CLICKED(IDC_CREATE_CREDENTIAL, &CTPMEncryptorDlg::OnBnClickedCreateCredential)
-	ON_BN_CLICKED(IDC_TPM_CHECK, &CTPMEncryptorDlg::OnBnClickedTpmCheck)
 	ON_BN_CLICKED(IDC_OPEN_CRED, &CTPMEncryptorDlg::OnBnClickedOpenCred)
 	ON_BN_CLICKED(IDC_CREATE_KEY, &CTPMEncryptorDlg::OnBnClickedCreateKey)
+	ON_BN_CLICKED(IDC_DELETE_CRED, &CTPMEncryptorDlg::OnBnClickedDeleteCred)
 END_MESSAGE_MAP()
 
 
@@ -231,14 +230,20 @@ void CTPMEncryptorDlg::OnBnClickedCreateCredential()
 }
 
 
-void CTPMEncryptorDlg::OnBnClickedTpmCheck()
+void CTPMEncryptorDlg::OnBnClickedDeleteCred()
 {	
 	auto op = m_winHello.DeleteKeyCredential();
-	op.Completed([this](winrt::Windows::Foundation::IAsyncAction const& asyncOp, winrt::Windows::Foundation::AsyncStatus status)
+	op.Completed([this](winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Foundation::IInspectable> const& asyncOp, winrt::Windows::Foundation::AsyncStatus status)
 		{
 			try {
-				asyncOp.GetResults();
-				MessageBox(L"Key credential deleted");
+				auto boxedResult = asyncOp.GetResults();
+				auto result = TPMEncryptor::IInspectableWrapper<bool>::unbox(boxedResult);
+				if (result) {
+					MessageBox(L"Key credential deleted");
+				}
+				else {
+					MessageBox(L"Failed to delete key credential");
+				}
 			}
 			catch (const winrt::hresult_error& e) {
 				MessageBox(CString(e.message().c_str()));
@@ -270,12 +275,18 @@ void CTPMEncryptorDlg::OnBnClickedOpenCred()
 
 void CTPMEncryptorDlg::OnBnClickedCreateKey()
 {
-	auto op = m_winHello.GetWindowsHelloPublicKeyAsync();
-	op.Completed([this](winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Storage::Streams::IBuffer> const& asyncOp, winrt::Windows::Foundation::AsyncStatus status)
+	auto op = m_secureService.CreateAESKey();
+	op.Completed([this](winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Foundation::IInspectable> const& asyncOp, winrt::Windows::Foundation::AsyncStatus status)
 		{
 			try {
-				auto result = asyncOp.GetResults();
-				MessageBox(L"Key got");
+				auto boxedResult = asyncOp.GetResults();
+				auto result = TPMEncryptor::IInspectableWrapper<NCRYPT_KEY_HANDLE>::unbox(boxedResult);
+				if (result) {
+					MessageBox(L"AES key created");
+				}
+				else {
+					MessageBox(L"Failed to create AES key");
+				}
 			}
 			catch (const winrt::hresult_error& e) {
 				MessageBox(CString(e.message().c_str()));
