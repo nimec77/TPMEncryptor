@@ -13,6 +13,10 @@ public:
 	winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Foundation::IInspectable> CreateAESKey() const;
 
 private:
+	winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Foundation::IInspectable> ImportPublicKey() const;
+
+	winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Foundation::IInspectable> ImportECCPublicKey() const;
+
 	// Helper check
 	inline void CheckStatus(const SECURITY_STATUS status, const std::string msg) const {
 		if (status != ERROR_SUCCESS) {

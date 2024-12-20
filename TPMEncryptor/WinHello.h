@@ -18,10 +18,12 @@ public:
 	static winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Foundation::IInspectable> DeleteKeyCredential();
 	static winrt::Windows::Foundation::IAsyncOperation<bool> OpenCredentialAsync();
 	static winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Storage::Streams::IBuffer> GetWindowsHelloPublicKeyAsync();
-
+	static winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Storage::Streams::IBuffer> SignAsync();
 
 private:
 	static const LPCWSTR CREDETIAL_ID;
+
+	static const LPCWSTR DATA_TO_SIGN;
 
 	static void CheckKeyCredentialStatus(winrt::Windows::Security::Credentials::KeyCredentialStatus status);
 };

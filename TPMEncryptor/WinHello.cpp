@@ -4,6 +4,7 @@
 
 #include <winrt/Windows.Security.Credentials.UI.h>
 #include <winrt/windows.security.cryptography.core.h>
+#include <winrt/Windows.Security.Cryptography.h>
 #include <stdexcept>
 
 using namespace winrt;
@@ -12,9 +13,12 @@ using namespace Windows::Foundation;
 using namespace Windows::Storage::Streams;
 using namespace Windows::Security::Credentials;
 using namespace Windows::Security::Credentials::UI;
+using namespace Windows::Security::Cryptography;
 using namespace Windows::Security::Cryptography::Core;
 
 const LPCWSTR WinHello::CREDETIAL_ID = L"AdWalletCredential";
+
+const LPCWSTR WinHello::DATA_TO_SIGN = L"This example data block fo sign";
 
 IAsyncOperation<bool> WinHello::AuthenticateAsync()
 {
@@ -100,9 +104,32 @@ IAsyncOperation<IBuffer> WinHello::GetWindowsHelloPublicKeyAsync()
 	CheckKeyCredentialStatus(status);
 
 	auto keyCredential = keyCredentialRetrievalResult.Credential();
-	auto publicKey = keyCredential.RetrievePublicKey();
+	auto publicKey = keyCredential.RetrievePublicKey(CryptographicPublicKeyBlobType::BCryptPublicKey);
 
 	co_return publicKey;
+}
+
+IAsyncOperation<IBuffer> WinHello::SignAsync()
+{
+	auto isSupported = co_await KeyCredentialManager::IsSupportedAsync();
+	if (!isSupported)
+	{
+		OutputDebugString(L"Windows Hello is not supported on this device.\n");
+		throw hresult_error(error_not_implemented, L"Windows Hello is not supported on this device.");
+	}
+
+	// Attempt to open existing credential
+	auto&& keyCredentialRetrievalResult = co_await KeyCredentialManager::OpenAsync(CREDETIAL_ID);
+	CheckKeyCredentialStatus(keyCredentialRetrievalResult.Status());
+
+	auto keyCredential = keyCredentialRetrievalResult.Credential();
+	
+	auto dataBuffer = CryptographicBuffer::ConvertStringToBinary(DATA_TO_SIGN, BinaryStringEncoding::Utf16LE);
+
+	auto signatureResult = co_await keyCredential.RequestSignAsync(dataBuffer);
+	CheckKeyCredentialStatus(signatureResult.Status());
+
+	co_return signatureResult.Result();
 }
 
 void WinHello::CheckKeyCredentialStatus(KeyCredentialStatus status)

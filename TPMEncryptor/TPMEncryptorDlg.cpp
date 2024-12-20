@@ -8,6 +8,7 @@
 #include "TPMEncryptorDlg.h"
 #include "StringConverter.h"
 #include "afxdialogex.h"
+#include "WinRTUtil.h"
 #include <exception>
 #include <string>
 #include <atlstr.h>
@@ -45,6 +46,7 @@ BEGIN_MESSAGE_MAP(CTPMEncryptorDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_OPEN_CRED, &CTPMEncryptorDlg::OnBnClickedOpenCred)
 	ON_BN_CLICKED(IDC_CREATE_KEY, &CTPMEncryptorDlg::OnBnClickedCreateKey)
 	ON_BN_CLICKED(IDC_DELETE_CRED, &CTPMEncryptorDlg::OnBnClickedDeleteCred)
+	ON_BN_CLICKED(IDC_SIGN, &CTPMEncryptorDlg::OnBnClickedSign)
 END_MESSAGE_MAP()
 
 
@@ -287,6 +289,23 @@ void CTPMEncryptorDlg::OnBnClickedCreateKey()
 				else {
 					MessageBox(L"Failed to create AES key");
 				}
+			}
+			catch (const winrt::hresult_error& e) {
+				MessageBox(CString(e.message().c_str()));
+			}
+		});
+}
+
+
+void CTPMEncryptorDlg::OnBnClickedSign()
+{
+	auto op = m_winHello.SignAsync();
+	op.Completed([this](winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Storage::Streams::IBuffer> const& asyncOp, winrt::Windows::Foundation::AsyncStatus status)
+		{
+			try {
+				auto publicKeyBuffer = asyncOp.GetResults();
+				auto publicKey = WinRTUtil::IBufferToVector(publicKeyBuffer);
+				MessageBox(L"Public key: " + CString(publicKey.data()));
 			}
 			catch (const winrt::hresult_error& e) {
 				MessageBox(CString(e.message().c_str()));

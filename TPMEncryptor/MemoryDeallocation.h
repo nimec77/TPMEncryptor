@@ -29,7 +29,7 @@ namespace TPMEncryptor
 		T m_state;
 	};
 
-	struct BCryptKeyHandleDeleteTraits
+	struct BCryptKeyHandleDestroyTraits
 	{
 		using type = BCRYPT_KEY_HANDLE;
 
@@ -46,8 +46,26 @@ namespace TPMEncryptor
 		}
 	};
 
-	using BCryptDeleteKeyHandle = winrt::handle_type<BCryptKeyHandleDeleteTraits>;
+	using BCryptDestroyKeyHandle = winrt::handle_type<BCryptKeyHandleDestroyTraits>;
 
+	struct NCryptKeyHandleDeleteTraits
+	{
+		using type = NCRYPT_KEY_HANDLE;
+
+		static void close(type handle) noexcept
+		{
+			if (handle != NULL) {
+				NCryptDeleteKey(handle, 0);
+			}
+		}
+
+		static constexpr type invalid() noexcept
+		{
+			return NULL;
+		}
+	};
+
+	using NCryptDeleteKeyHandle = winrt::handle_type<NCryptKeyHandleDeleteTraits>;
 
 	struct NCryptHandleFreeTraits
 	{
