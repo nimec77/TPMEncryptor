@@ -16,29 +16,34 @@
 
 using namespace winrt;
 using namespace Windows::Foundation;
+using namespace Windows::Security::Cryptography::Core;
 
 
-IAsyncOperation<IInspectable> SecureService::CreateAESKey() const
+IAsyncOperation<CryptographicKey> SecureService::CreateAESKey() const
 {
-	auto&& hPublicKeyBoxed = co_await ImportECCPublicKey();
-	auto hPublicKeyRaw = TPMEncryptor::IInspectableWrapper<NCRYPT_KEY_HANDLE>::unbox(hPublicKeyBoxed);
-	auto hPublicKey = TPMEncryptor::NCryptDeleteKeyHandle(hPublicKeyRaw);
+	//auto&& hPublicKeyBoxed = co_await ImportECCPublicKey();
+	//auto hPublicKeyRaw = TPMEncryptor::IInspectableWrapper<NCRYPT_KEY_HANDLE>::unbox(hPublicKeyBoxed);
+	//auto hPublicKey = TPMEncryptor::NCryptDeleteKeyHandle(hPublicKeyRaw);
 
-	auto hPrivateKeyRaw = m_encryptorHelper.GetECDHKey();
-	auto hPrivateKey = TPMEncryptor::NCryptHandleFree(hPrivateKeyRaw);
+	//auto hPrivateKeyRaw = m_encryptorHelper.GetECDHKey();
+	//auto hPrivateKey = TPMEncryptor::NCryptHandleFree(hPrivateKeyRaw);
 
-	NCRYPT_PROV_HANDLE hProvRaw = NULL;
-	SECURITY_STATUS status = ERROR_SUCCESS;
-	status = NCryptOpenStorageProvider(&hProvRaw, MS_PLATFORM_CRYPTO_PROVIDER, 0);
-	CheckStatus(status, "Failed to open TPM provider");
-	auto hProv = TPMEncryptor::NCryptHandleFree(hProvRaw);
+	//NCRYPT_PROV_HANDLE hProvRaw = NULL;
+	//SECURITY_STATUS status = ERROR_SUCCESS;
+	//status = NCryptOpenStorageProvider(&hProvRaw, MS_PLATFORM_CRYPTO_PROVIDER, 0);
+	//CheckStatus(status, "Failed to open TPM provider");
+	//auto hProv = TPMEncryptor::NCryptHandleFree(hProvRaw);
 
-	// Derive shared secret
-	NCRYPT_SECRET_HANDLE hSecretRaw = 0;
-	status = NCryptSecretAgreement(hPrivateKeyRaw, hPublicKeyRaw, &hSecretRaw, 0);
-	CheckStatus(status, "Failed to derive shared secret");
+	//// Derive shared secret
+	//NCRYPT_SECRET_HANDLE hSecretRaw = 0;
+	//status = NCryptSecretAgreement(hPrivateKeyRaw, hPublicKeyRaw, &hSecretRaw, 0);
+	//CheckStatus(status, "Failed to derive shared secret");
 
-	co_return TPMEncryptor::IInspectableWrapper<int>::box(1);
+	auto&& signatureBuffer = co_await m_winHello.SignAsync();
+
+	auto&& aesKey = co_await m_winHello.CreateAESKey(signatureBuffer);
+
+	co_return aesKey;
 }
 
 IAsyncOperation<IInspectable> SecureService::ImportPublicKey() const

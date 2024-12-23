@@ -278,17 +278,11 @@ void CTPMEncryptorDlg::OnBnClickedOpenCred()
 void CTPMEncryptorDlg::OnBnClickedCreateKey()
 {
 	auto op = m_secureService.CreateAESKey();
-	op.Completed([this](winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Foundation::IInspectable> const& asyncOp, winrt::Windows::Foundation::AsyncStatus status)
+	op.Completed([this](winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Security::Cryptography::Core::CryptographicKey> const& asyncOp, winrt::Windows::Foundation::AsyncStatus status)
 		{
 			try {
-				auto boxedResult = asyncOp.GetResults();
-				auto result = TPMEncryptor::IInspectableWrapper<NCRYPT_KEY_HANDLE>::unbox(boxedResult);
-				if (result) {
-					MessageBox(L"AES key created");
-				}
-				else {
-					MessageBox(L"Failed to create AES key");
-				}
+				auto aesKey = asyncOp.GetResults();
+				MessageBox(L"AES key created");
 			}
 			catch (const winrt::hresult_error& e) {
 				MessageBox(CString(e.message().c_str()));

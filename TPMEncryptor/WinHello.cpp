@@ -126,10 +126,46 @@ IAsyncOperation<IBuffer> WinHello::SignAsync()
 	
 	auto dataBuffer = CryptographicBuffer::ConvertStringToBinary(DATA_TO_SIGN, BinaryStringEncoding::Utf16LE);
 
-	auto signatureResult = co_await keyCredential.RequestSignAsync(dataBuffer);
+	auto&& signatureResult = co_await keyCredential.RequestSignAsync(dataBuffer);
 	CheckKeyCredentialStatus(signatureResult.Status());
 
 	co_return signatureResult.Result();
+}
+
+IAsyncOperation<CryptographicKey> WinHello::CreateAESKey(IBuffer signature)
+{
+	auto sha256Provider = HashAlgorithmProvider::OpenAlgorithm(HashAlgorithmNames::Sha256());
+	auto hash = sha256Provider.HashData(signature);
+	if (hash.Length() != 32)
+	{
+		OutputDebugString(L"Hash length is not 32 bytes.\n");
+		throw hresult_error(error_fail, L"Hash length is not 32 bytes.");
+	}
+
+	auto aesProvider = SymmetricKeyAlgorithmProvider::OpenAlgorithm(SymmetricAlgorithmNames::AesGcm());
+
+	auto aesKey = aesProvider.CreateSymmetricKey(hash);
+
+	co_return aesKey;
+}
+
+IAsyncOperation<hstring> WinHello::Encrypt(CryptographicKey key, hstring plainText)
+{
+	auto nonce = CryptographicBuffer::GenerateRandom(NONCE_LENGTH);
+
+	auto dataToEncrypt = CryptographicBuffer::ConvertStringToBinary(plainText, BinaryStringEncoding::Utf16LE);
+	auto encryptedAndAuthData = CryptographicEngine::EncryptAndAuthenticate(key, dataToEncrypt, nonce, nullptr);
+
+	auto encryptedData = encryptedAndAuthData.EncryptedData();
+	auto tag = encryptedAndAuthData.AuthenticationTag();
+
+	DataWriter writer;
+	writer.WriteBuffer(nonce);
+	writer.WriteBuffer(encryptedData);
+	writer.WriteBuffer(tag);
+	auto encryptedDataBuffer = writer.DetachBuffer();
+
+	co_return CryptographicBuffer::EncodeToBase64String(encryptedDataBuffer);
 }
 
 void WinHello::CheckKeyCredentialStatus(KeyCredentialStatus status)

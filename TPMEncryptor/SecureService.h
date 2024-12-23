@@ -10,7 +10,7 @@
 class SecureService
 {
 public:
-	winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Foundation::IInspectable> CreateAESKey() const;
+	winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Security::Cryptography::Core::CryptographicKey> CreateAESKey() const;
 
 private:
 	winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Foundation::IInspectable> ImportPublicKey() const;

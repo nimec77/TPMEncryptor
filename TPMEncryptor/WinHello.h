@@ -19,11 +19,21 @@ public:
 	static winrt::Windows::Foundation::IAsyncOperation<bool> OpenCredentialAsync();
 	static winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Storage::Streams::IBuffer> GetWindowsHelloPublicKeyAsync();
 	static winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Storage::Streams::IBuffer> SignAsync();
+	static winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Security::Cryptography::Core::CryptographicKey> CreateAESKey(
+		winrt::Windows::Storage::Streams::IBuffer signature);
+	static winrt::Windows::Foundation::IAsyncOperation<winrt::hstring> Encrypt(
+		winrt::Windows::Security::Cryptography::Core::CryptographicKey key,
+		winrt::hstring plainText);
+	
 
 private:
 	static const LPCWSTR CREDETIAL_ID;
 
 	static const LPCWSTR DATA_TO_SIGN;
+
+	static const uint32_t NONCE_LENGTH = 12;
+
+	static const uint32_t TAG_LENGTH = 16;
 
 	static void CheckKeyCredentialStatus(winrt::Windows::Security::Credentials::KeyCredentialStatus status);
 };
