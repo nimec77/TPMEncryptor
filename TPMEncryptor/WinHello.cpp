@@ -132,7 +132,7 @@ IAsyncOperation<IBuffer> WinHello::SignAsync()
 	co_return signatureResult.Result();
 }
 
-IAsyncOperation<CryptographicKey> WinHello::CreateAESKey(IBuffer signature)
+CryptographicKey WinHello::CreateAESKey(IBuffer signature)
 {
 	auto sha256Provider = HashAlgorithmProvider::OpenAlgorithm(HashAlgorithmNames::Sha256());
 	auto hash = sha256Provider.HashData(signature);
@@ -146,10 +146,10 @@ IAsyncOperation<CryptographicKey> WinHello::CreateAESKey(IBuffer signature)
 
 	auto aesKey = aesProvider.CreateSymmetricKey(hash);
 
-	co_return aesKey;
+	return aesKey;
 }
 
-IAsyncOperation<hstring> WinHello::Encrypt(CryptographicKey key, hstring plainText)
+hstring WinHello::Encrypt(CryptographicKey key, hstring plainText)
 {
 	auto nonce = CryptographicBuffer::GenerateRandom(NONCE_LENGTH);
 
@@ -165,7 +165,26 @@ IAsyncOperation<hstring> WinHello::Encrypt(CryptographicKey key, hstring plainTe
 	writer.WriteBuffer(tag);
 	auto encryptedDataBuffer = writer.DetachBuffer();
 
-	co_return CryptographicBuffer::EncodeToBase64String(encryptedDataBuffer);
+	auto base64String = CryptographicBuffer::EncodeToBase64String(encryptedDataBuffer);
+
+	return base64String;
+}
+
+hstring WinHello::Decrypt(CryptographicKey key, hstring encryptedText)
+{
+	auto combainedBuffer = CryptographicBuffer::DecodeFromBase64String(encryptedText);
+
+	auto encryptedDataLength = combainedBuffer.Length() - NONCE_LENGTH - TAG_LENGTH;
+
+	auto reader = DataReader::FromBuffer(combainedBuffer);
+	auto nonce = reader.ReadBuffer(NONCE_LENGTH);
+	auto encryptedData = reader.ReadBuffer(encryptedDataLength);
+	auto tag = reader.ReadBuffer(TAG_LENGTH);
+
+	auto decryptedData = CryptographicEngine::DecryptAndAuthenticate(key, encryptedData, nonce, tag, nullptr);
+	auto decryptedText = CryptographicBuffer::ConvertBinaryToString(BinaryStringEncoding::Utf16LE, decryptedData);
+
+	return decryptedText;
 }
 
 void WinHello::CheckKeyCredentialStatus(KeyCredentialStatus status)

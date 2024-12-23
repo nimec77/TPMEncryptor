@@ -47,6 +47,8 @@ BEGIN_MESSAGE_MAP(CTPMEncryptorDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_CREATE_KEY, &CTPMEncryptorDlg::OnBnClickedCreateKey)
 	ON_BN_CLICKED(IDC_DELETE_CRED, &CTPMEncryptorDlg::OnBnClickedDeleteCred)
 	ON_BN_CLICKED(IDC_SIGN, &CTPMEncryptorDlg::OnBnClickedSign)
+	ON_BN_CLICKED(IDC_HELLO_ENCRYPT, &CTPMEncryptorDlg::OnBnClickedHelloEncrypt)
+	ON_BN_CLICKED(IDC_HELLO_DECRYPT, &CTPMEncryptorDlg::OnBnClickedHelloDecrypt)
 END_MESSAGE_MAP()
 
 
@@ -278,11 +280,16 @@ void CTPMEncryptorDlg::OnBnClickedOpenCred()
 void CTPMEncryptorDlg::OnBnClickedCreateKey()
 {
 	auto op = m_secureService.CreateAESKey();
-	op.Completed([this](winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Security::Cryptography::Core::CryptographicKey> const& asyncOp, winrt::Windows::Foundation::AsyncStatus status)
+	op.Completed([this](winrt::Windows::Foundation::IAsyncOperation<bool> const& asyncOp, winrt::Windows::Foundation::AsyncStatus status)
 		{
 			try {
-				auto aesKey = asyncOp.GetResults();
-				MessageBox(L"AES key created");
+				auto result = asyncOp.GetResults();
+				if (result) {
+					MessageBox(L"AES key created");
+				}
+				else {
+					MessageBox(L"Failed to create AES key");
+				}
 			}
 			catch (const winrt::hresult_error& e) {
 				MessageBox(CString(e.message().c_str()));
@@ -305,4 +312,47 @@ void CTPMEncryptorDlg::OnBnClickedSign()
 				MessageBox(CString(e.message().c_str()));
 			}
 		});
+}
+
+
+void CTPMEncryptorDlg::OnBnClickedHelloEncrypt()
+{
+	CString plainText;
+	GetDlgItemText(IDC_PLAIN_TEXT_EDIT, plainText);
+	winrt::hstring hstr(plainText);
+	if (hstr.empty()) {
+		MessageBox(L"Please enter a text to encrypt");
+		return;
+	}
+	try {
+		auto encryptedText = m_secureService.Encrypt(hstr);
+		auto msg = StringConverter::ConvertHStringToString(encryptedText);
+		CString cstr(msg.c_str());
+		SetDlgItemText(IDC_ENCRYTPED_TEXT, cstr);
+		MessageBox(L"Encrypted");
+	}
+	catch (const winrt::hresult_error& e) {
+		MessageBox(CString(e.message().c_str()));
+	}
+}
+
+
+void CTPMEncryptorDlg::OnBnClickedHelloDecrypt()
+{
+	CString chipherText;
+	GetDlgItemText(IDC_ENCRYTPED_TEXT, chipherText);
+	winrt::hstring hstr(chipherText);
+	if (hstr.empty()) {
+		MessageBox(L"Please enter a text to decrypt");
+		return;
+	}
+	try {
+		auto decryptedText = m_secureService.Decrypt(hstr);
+		auto msg = StringConverter::ConvertHStringToString(decryptedText);
+		auto localeMsg = StringConverter::ConvertStringToWideString(msg);
+		MessageBox(L"Decrypted: " + CString(localeMsg.c_str()));
+	}
+	catch (const winrt::hresult_error& e) {
+		MessageBox(CString(e.message().c_str()));
+	}
 }

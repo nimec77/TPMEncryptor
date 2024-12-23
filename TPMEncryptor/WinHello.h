@@ -13,17 +13,28 @@ class WinHello
 public:
 
 	static winrt::Windows::Foundation::IAsyncOperation<bool> AuthenticateAsync();
+
 	static winrt::Windows::Foundation::IAsyncOperation<bool> CreateKeyCredentialAsync();
+
 	//static winrt::Windows::Foundation::IAsyncAction DeleteKeyCredential();
+
 	static winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Foundation::IInspectable> DeleteKeyCredential();
+
 	static winrt::Windows::Foundation::IAsyncOperation<bool> OpenCredentialAsync();
+
 	static winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Storage::Streams::IBuffer> GetWindowsHelloPublicKeyAsync();
+
 	static winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Storage::Streams::IBuffer> SignAsync();
-	static winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Security::Cryptography::Core::CryptographicKey> CreateAESKey(
-		winrt::Windows::Storage::Streams::IBuffer signature);
-	static winrt::Windows::Foundation::IAsyncOperation<winrt::hstring> Encrypt(
+
+	static winrt::Windows::Security::Cryptography::Core::CryptographicKey CreateAESKey(winrt::Windows::Storage::Streams::IBuffer signature);
+
+	static winrt::hstring Encrypt(
 		winrt::Windows::Security::Cryptography::Core::CryptographicKey key,
 		winrt::hstring plainText);
+
+	static winrt::hstring Decrypt(
+		winrt::Windows::Security::Cryptography::Core::CryptographicKey key,
+		winrt::hstring encryptedText);
 	
 
 private:

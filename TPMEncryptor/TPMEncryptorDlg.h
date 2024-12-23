@@ -56,4 +56,6 @@ public:
 	afx_msg void OnBnClickedCreateKey();
 	afx_msg void OnBnClickedDeleteCred();
 	afx_msg void OnBnClickedSign();
+	afx_msg void OnBnClickedHelloEncrypt();
+	afx_msg void OnBnClickedHelloDecrypt();
 };

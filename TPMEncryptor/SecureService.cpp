@@ -19,7 +19,7 @@ using namespace Windows::Foundation;
 using namespace Windows::Security::Cryptography::Core;
 
 
-IAsyncOperation<CryptographicKey> SecureService::CreateAESKey() const
+IAsyncOperation<bool> SecureService::CreateAESKey()
 {
 	//auto&& hPublicKeyBoxed = co_await ImportECCPublicKey();
 	//auto hPublicKeyRaw = TPMEncryptor::IInspectableWrapper<NCRYPT_KEY_HANDLE>::unbox(hPublicKeyBoxed);
@@ -41,9 +41,31 @@ IAsyncOperation<CryptographicKey> SecureService::CreateAESKey() const
 
 	auto&& signatureBuffer = co_await m_winHello.SignAsync();
 
-	auto&& aesKey = co_await m_winHello.CreateAESKey(signatureBuffer);
+	m_aesKey = m_winHello.CreateAESKey(signatureBuffer);
 
-	co_return aesKey;
+	co_return true;
+}
+
+hstring SecureService::Encrypt(hstring plainText) const
+{
+	if (!m_aesKey) {
+		throw std::runtime_error("AES key is not created");
+	}
+
+	auto encryptedText = m_winHello.Encrypt(m_aesKey, plainText);
+
+	return encryptedText;
+}
+
+hstring SecureService::Decrypt(hstring encryptedText) const
+{
+	if (!m_aesKey) {
+		throw std::runtime_error("AES key is not created");
+	}
+
+	auto decryptedText = m_winHello.Decrypt(m_aesKey, encryptedText);
+
+	return decryptedText;
 }
 
 IAsyncOperation<IInspectable> SecureService::ImportPublicKey() const

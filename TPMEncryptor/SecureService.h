@@ -10,7 +10,11 @@
 class SecureService
 {
 public:
-	winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Security::Cryptography::Core::CryptographicKey> CreateAESKey() const;
+	winrt::Windows::Foundation::IAsyncOperation<bool> CreateAESKey();
+
+	winrt::hstring Encrypt(winrt::hstring plainText) const;
+
+	winrt::hstring Decrypt(winrt::hstring encryptedText) const;
 
 private:
 	winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Foundation::IInspectable> ImportPublicKey() const;
@@ -27,5 +31,7 @@ private:
 
 	TMPEncryptorHelper m_encryptorHelper;
 	WinHello m_winHello;
+
+	winrt::Windows::Security::Cryptography::Core::CryptographicKey m_aesKey = nullptr;
 };
 
